@@ -1,6 +1,7 @@
 // Configuración global
 const SUPABASE_URL = localStorage.getItem('supabase_url') || 'https://grytlszzjoqfhpmxgptx.supabase.co';
 const SUPABASE_KEY = localStorage.getItem('supabase_key') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdyeXRsc3p6am9xZmhwbXhncHR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk1MjM3MDYsImV4cCI6MjA4NTA5OTcwNn0.k6TFapvUyMImQIX73T2mxjSyAm2FYmgFEaD6BCIE4Ks';
+const GITHUB_TOKEN = localStorage.getItem('github_pat_token') || '';
 
 // Estado global
 let currentFilter = 'all';
