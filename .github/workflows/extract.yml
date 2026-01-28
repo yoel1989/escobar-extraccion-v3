@@ -51,7 +51,7 @@ jobs:
         API_HASH="${{ secrets.TELEGRAM_API_HASH }}"
         PHONE="${{ secrets.TELEGRAM_PHONE }}"
         SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
-        SUPABABSE_KEY="${{ secrets.SUPABASE_KEY }}"
+        SUPABASE_KEY="${{ secrets.SUPABASE_KEY }}"
         EOF
         
     - name: Update extraction status to processing
