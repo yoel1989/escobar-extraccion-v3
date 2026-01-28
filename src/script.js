@@ -290,17 +290,16 @@ async function triggerExtraction(tipo, puntos, startDate, endDate) {
 }
 
 async function triggerGitHubAction(extraccionId, puntos, startDate, endDate) {
-    // En un entorno real, esto llamaría a una API para disparar el GitHub Action
-    // Por ahora, simulamos el trigger
+    // Llama a la API de GitHub para disparar el GitHub Action
     
-    const webhookUrl = 'https://api.github.com/repos/YOUR_USERNAME/extraccion-datos-web/dispatches';
+    const webhookUrl = 'https://api.github.com/repos/yoel1989/escobar-extraccion-v3/dispatches';
     
     try {
         // Esto requiere un token de GitHub con permisos de workflows
         const response = await fetch(webhookUrl, {
             method: 'POST',
             headers: {
-                'Authorization': `token YOUR_GITHUB_TOKEN`,
+                'Authorization': `token ${GITHUB_TOKEN}`,
                 'Content-Type': 'application/json',
                 'Accept': 'application/vnd.github.v3+json'
             },
