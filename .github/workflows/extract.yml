@@ -167,9 +167,9 @@ jobs:
         print('Log entry added:', response.status_code)
         "
         
-    - name: Upload results as artifacts
-      if: success()
-      uses: actions/upload-artifact@v3
+- name: Upload results as artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
       with:
         name: extraction-results-${{ github.event.inputs.extraccion_id }}
         path: |
