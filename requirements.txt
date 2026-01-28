@@ -1,0 +1,9 @@
+telethon
+reportlab
+python-dotenv
+requests
+supabase
+
+token git hub escobarnet
+
+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

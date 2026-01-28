@@ -1,0 +1,178 @@
+name: Ejecutar Extracción de Datos
+
+on:
+  workflow_dispatch:
+    inputs:
+      extraccion_id:
+        description: 'ID de extracción'
+        required: true
+        type: string
+      puntos:
+        description: 'Puntos a extraer (separados por coma)'
+        required: true
+        type: string
+      start_date:
+        description: 'Fecha de inicio (YYYY-MM-DD)'
+        required: true
+        type: string
+      end_date:
+        description: 'Fecha de fin (YYYY-MM-DD)'
+        required: true
+        type: string
+
+env:
+  SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+  SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+  TELEGRAM_API_ID: ${{ secrets.TELEGRAM_API_ID }}
+  TELEGRAM_API_HASH: ${{ secrets.TELEGRAM_API_HASH }}
+  TELEGRAM_PHONE: ${{ secrets.TELEGRAM_PHONE }}
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        pip install telethon reportlab python-dotenv supabase
+        
+    - name: Create environment file
+      run: |
+        cat > .env << EOF
+        API_ID=${{ secrets.TELEGRAM_API_ID }}
+        API_HASH="${{ secrets.TELEGRAM_API_HASH }}"
+        PHONE="${{ secrets.TELEGRAM_PHONE }}"
+        SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+        SUPABABSE_KEY="${{ secrets.SUPABASE_KEY }}"
+        EOF
+        
+    - name: Update extraction status to processing
+      run: |
+        python -c "
+        import requests
+        import json
+        
+        url = '${{ secrets.SUPABASE_URL }}/rest/v1/extracciones'
+        headers = {
+            'apikey': '${{ secrets.SUPABASE_KEY }}',
+            'Authorization': 'Bearer ${{ secrets.SUPABASE_KEY }}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        data = {
+            'estado': 'procesando',
+            'completado_at': None
+        }
+        
+        response = requests.patch(f'{url}?id=eq.${{ github.event.inputs.extraccion_id }}', headers=headers, json=data)
+        print('Status updated:', response.status_code)
+        "
+        
+    - name: Run extraction
+      run: |
+        python scripts/main.py --extraccion-id "${{ github.event.inputs.extraccion_id }}" --puntos "${{ github.event.inputs.puntos }}" --start-date "${{ github.event.inputs.start_date }}" --end-date "${{ github.event.inputs.end_date }}"
+        
+    - name: Update extraction status to completed
+      if: success()
+      run: |
+        python -c "
+        import requests
+        import json
+        import sys
+        
+        url = '${{ secrets.SUPABASE_URL }}/rest/v1/extracciones'
+        headers = {
+            'apikey': '${{ secrets.SUPABASE_KEY }}',
+            'Authorization': 'Bearer ${{ secrets.SUPABASE_KEY }}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Leer resultados del archivo de resultados
+        try:
+            with open('results.json', 'r') as f:
+                results = json.load(f)
+        except:
+            results = {}
+        
+        data = {
+            'estado': 'completada',
+            'total_ventas': results.get('total_ventas'),
+            'total_comision': results.get('total_comision'),
+            'comision_alcanza': results.get('comision_alcanza'),
+            'total_enviar': results.get('total_enviar'),
+            'completado_at': 'now()'
+        }
+        
+        response = requests.patch(f'{url}?id=eq.${{ github.event.inputs.extraccion_id }}', headers=headers, json=data)
+        print('Status updated:', response.status_code)
+        "
+        
+    - name: Update extraction status to error
+      if: failure()
+      run: |
+        python -c "
+        import requests
+        import json
+        
+        url = '${{ secrets.SUPABASE_URL }}/rest/v1/extracciones'
+        headers = {
+            'apikey': '${{ secrets.SUPABASE_KEY }}',
+            'Authorization': 'Bearer ${{ secrets.SUPABASE_KEY }}',
+            'Content-Type': 'application/json'
+        }
+        
+        data = {
+            'estado': 'error',
+            'completado_at': 'now()'
+        }
+        
+        response = requests.patch(f'{url}?id=eq.${{ github.event.inputs.extraccion_id }}', headers=headers, json=data)
+        print('Status updated:', response.status_code)
+        "
+        
+    - name: Add log entry
+      if: always()
+      run: |
+        python -c "
+        import requests
+        import json
+        
+        url = '${{ secrets.SUPABASE_URL }}/rest/v1/historial'
+        headers = {
+            'apikey': '${{ secrets.SUPABASE_KEY }}',
+            'Authorization': 'Bearer ${{ secrets.SUPABASE_KEY }}',
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+        }
+        
+        status = 'completada' if '${{ job.status }}' == 'success' else 'error'
+        message = 'Extracción completada exitosamente' if '${{ job.status }}' == 'success' else 'Error en la extracción'
+        
+        data = {
+            'extraccion_id': '${{ github.event.inputs.extraccion_id }}',
+            'mensaje': message,
+            'tipo': status
+        }
+        
+        response = requests.post(url, headers=headers, json=data)
+        print('Log entry added:', response.status_code)
+        "
+        
+    - name: Upload results as artifacts
+      if: success()
+      uses: actions/upload-artifact@v3
+      with:
+        name: extraction-results-${{ github.event.inputs.extraccion_id }}
+        path: |
+          *.pdf
+          results.json
+          *.zip
