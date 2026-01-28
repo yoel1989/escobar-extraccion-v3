@@ -441,6 +441,12 @@ async function updateStatus() {
     try {
         console.log('Actualizando estado...');
         
+        // Si no hay credenciales, mostrar configuración
+        if (!SUPABASE_URL || !SUPABASE_KEY) {
+            showConfigModal();
+            return;
+        }
+        
         // Última extracción
         const lastResponse = await fetch(`${SUPABASE_URL}/rest/v1/extracciones?order=creado_at.desc&limit=1`, {
             headers: {
@@ -478,6 +484,103 @@ async function updateStatus() {
         console.error('Error actualizando estado:', error);
         showToast('Error actualizando estado', 'error');
     }
+}
+
+function showConfigModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal show';
+    modal.innerHTML = `
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i class="fas fa-cog"></i> Configurar Credenciales de Supabase</h3>
+                <button class="modal-close" onclick="closeConfigModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Paso 1:</strong> Ingresa tus credenciales de Supabase:</p>
+                </p>
+                <p><strong>URL de Supabase:</strong></p>
+                <input type="text" id="supabaseUrlInput" placeholder="https://xxx.supabase.co" value="${SUPABASE_URL || ''}">
+                </p>
+                <p><strong>API Key:</strong></p>
+                <input type="password" id="supabaseKeyInput" placeholder="eyJhbGciOi...">
+                </p>
+                <p class="info">Puedes obtener estos datos desde tu dashboard de Supabase:</p>
+                </p>
+                <ol>
+                    <li>Ve a <a href="https://supabase.com/dashboard/project/" target="_blank">tu dashboard de Supabase</a></li>
+                    <li>Ve a Settings > API</li>
+                    <li>Ve a Database > Tables > extracciones</li>
+                </ol>
+                </p>
+                <button class="btn btn-primary" onclick="saveConfig()">Guardar</button>
+                <button class="btn btn-secondary" onclick="testConnection()">Probar Conexión</button>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    window.closeConfigModal = () => {
+        document.body.removeChild(modal);
+    };
+    
+    window.saveConfig = () => {
+        const url = document.getElementById('supabaseUrlInput').value.trim();
+        const key = document.getElementById('supabaseKeyInput').value.trim();
+        
+        if (!url || !key) {
+            showToast('Completa todos los campos', 'warning');
+            return;
+        }
+        
+        localStorage.setItem('supabase_url', url);
+        localStorage.setItem('supabase_key', key);
+        
+        showToast('Configuración guardada correctamente', 'success');
+        closeConfigModal();
+        setTimeout(() => location.reload(), 1000);
+    };
+    
+    window.testConnection = async () => {
+        try {
+            const testUrl = document.getElementById('supabaseUrlInput').value.trim();
+            const testKey = document.getElementById('supabaseKeyInput').value.trim();
+            
+            console.log('Probando conexión...');
+            
+            const response = await fetch(`${testUrl}/rest/v1/extracciones?limit=1`, {
+                headers: {
+                    'apikey': testKey,
+                    'Authorization': `Bearer ${testKey}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Error de conexión');
+            }
+            
+            showToast('Conexión exitosa a Supabase', 'success');
+            closeConfigModal();
+            
+        } catch (error) {
+            showToast('Error de conexión', 'error');
+        }
+    };
+}
+
+// Función para mostrar toast
+function showToast(message, type = 'info') {
+    const toastContainer = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle'}"></i> <span>${message}</span>`;
+    
+    toastContainer.appendChild(toast);
+    
+    setTimeout(() => {
+        toastContainer.removeChild(toast);
+    }, 3000);
 }
 
 // Funciones de UI
